@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">DI3000</string>
+    <string name="state_real_time_stream">State: Real Time Stream</string>
+    <string name="state_frozen_image">State: Frozen Image</string>
 </resources>

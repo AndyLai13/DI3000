@@ -77,7 +77,10 @@ public class RestApiManager {
         call.enqueue(callback);
     }
 
-
+    void getCapBtnState(Callback<JsonObject> callback) {
+        Call<JsonObject> call = mAPIService.getCapBtnState();
+        call.enqueue(callback);
+    }
 
     public interface APIService {
         @GET("do/getmodel")
@@ -109,5 +112,9 @@ public class RestApiManager {
 
         @GET("do/setres?W=1280&H=480")
         Call<JsonObject> setRes();
+
+        @GET("do/getcap")
+        Call<JsonObject> getCapBtnState();
+
     }
 }
