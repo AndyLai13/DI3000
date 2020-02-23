@@ -6,16 +6,13 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
-import retrofit2.http.Body;
 import retrofit2.http.GET;
-import retrofit2.http.POST;
-import retrofit2.http.PUT;
+import retrofit2.http.Query;
 
 public class RestApiManager {
 
     private static RestApiManager mInstance = new RestApiManager();
     private APIService mAPIService;
-    private final static String DM_URL = "https://dm.dev.myviewboard.cloud/";
     private final static String CGI_URL = "http://192.168.1.1/";
 
     private RestApiManager() {
@@ -30,38 +27,87 @@ public class RestApiManager {
         return mInstance;
     }
 
-//	public APIService getAPI() {
-//		return mAPIService;
-//	}
-
-    void GET(Callback<JsonObject> callback) {
-        Call<JsonObject> call = mAPIService.get();
+    void getModel(Callback<JsonObject> callback) {
+        Call<JsonObject> call = mAPIService.getModel();
         call.enqueue(callback);
     }
 
-//    void PUT(Callback<JsonObject> callback, EntityInfo body) {
-//        Call<JsonObject> call = mAPIService.put(body);
-//        call.enqueue(callback);
-//    }
-//
-//    void POST(Callback<JsonObject> callback, EnrollmentInfo body) {
-//        Call<JsonObject> call = mAPIService.post(body);
-//        call.enqueue(callback);
-//    }
+    void getDefault(Callback<JsonObject> callback) {
+        Call<JsonObject> call = mAPIService.getDefault();
+        call.enqueue(callback);
+    }
+
+    void getFrame(Callback<JsonObject> callback) {
+        Call<JsonObject> call = mAPIService.getFrame();
+        call.enqueue(callback);
+    }
+
+    void setBrightness(Callback<JsonObject> callback, String brightness) {
+        Call<JsonObject> call = mAPIService.setBrightness(brightness);
+        call.enqueue(callback);
+    }
+
+    void setContrast(Callback<JsonObject> callback, String contrast) {
+        Call<JsonObject> call = mAPIService.setContrast(contrast);
+        call.enqueue(callback);
+    }
+
+    void setSharpness(Callback<JsonObject> callback, String sharpness) {
+        Call<JsonObject> call = mAPIService.setSharpness(sharpness);
+        call.enqueue(callback);
+    }
+
+    void setGain(Callback<JsonObject> callback, String gain) {
+        Call<JsonObject> call = mAPIService.setGain(gain);
+        call.enqueue(callback);
+    }
+
+    void setAutoExposure(Callback<JsonObject> callback, String autoExposure) {
+        Call<JsonObject> call = mAPIService.setAutoExposure(autoExposure);
+        call.enqueue(callback);
+    }
+
+    void setExposureTime(Callback<JsonObject> callback, String exposureTime) {
+        Call<JsonObject> call = mAPIService.setExposureTime(exposureTime);
+        call.enqueue(callback);
+    }
+
+    void setRes(Callback<JsonObject> callback) {
+        Call<JsonObject> call = mAPIService.setRes();
+        call.enqueue(callback);
+    }
+
+
 
     public interface APIService {
-        // url		https://dm.dev.myviewboard.cloud
-        // GET		https://dm.dev.myviewboard.cloud/v1/code
-        // PUT		https://dm.dev.myviewboard.cloud/v1/code
-        // POST     https://dm.dev.myviewboard.cloud/v1/enroll
-
         @GET("do/getmodel")
-        Call<JsonObject> get();
-//
-//        @PUT("v1/code")
-//        Call<JsonObject> put(@Body EntityInfo entityInfo);
-//
-//        @POST("v1/enroll")
-//        Call<JsonObject> post(@Body EnrollmentInfo enrollmentInfo);
+        Call<JsonObject> getModel();
+
+        @GET("do/getiq")
+        Call<JsonObject> getDefault();
+
+        @GET("do/getframe")
+        Call<JsonObject> getFrame();
+
+        @GET("do/setiq")
+        Call<JsonObject> setBrightness(@Query("B") String brightness);
+
+        @GET("do/setiq")
+        Call<JsonObject> setContrast(@Query("C") String contrast);
+
+        @GET("do/setiq")
+        Call<JsonObject> setSharpness(@Query("S") String sharpness);
+
+        @GET("do/setiq")
+        Call<JsonObject> setGain(@Query("G") String gain);
+
+        @GET("do/setiq")
+        Call<JsonObject> setAutoExposure(@Query("A") String autoExposure);
+
+        @GET("do/setiq")
+        Call<JsonObject> setExposureTime(@Query("E") String exposureTime);
+
+        @GET("do/setres?W=1280&H=480")
+        Call<JsonObject> setRes();
     }
 }
