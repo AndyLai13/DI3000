@@ -20,6 +20,20 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"/>
 
+        <TextView
+            android:id="@+id/lost_connection"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cannot connect to DI-3000. Please check your Wi-Fi connection after airplane mode opened."
+            android:visibility="visible"
+            android:layout_margin="20dp"
+            android:textColor="@android:color/white"
+            android:textSize="20dp"
+            android:textStyle="bold"
+            android:gravity="center"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"/>
+
         <com.lightel.di3000.ZoomImageView2
             android:id="@+id/freeze"
             android:layout_width="wrap_content"

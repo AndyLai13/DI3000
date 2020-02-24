@@ -41,6 +41,7 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
 
     DrawerLayout mDrawerLayout;
     TextureView mTextureView;
+    TextView mLostConnection;
     private MediaPlayer mMediaPlayer;
     private LibVLC mLibVLC = null;
     String rtspUrl0 = "rtsp://192.168.1.1/";
@@ -49,8 +50,43 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
     SeekBar seekBarBrightness;
     SeekBar seekBarContrast;
     Button btnOption;
-
     MutableLiveData<Boolean> isFrozen = new MutableLiveData<>();
+    MutableLiveData<Boolean> isLostConnection = new MutableLiveData<>();
+    WeakHandler mHandler = new WeakHandler(this);
+
+    public static final int MSG_CHECK_CAPTURE_BTN_STATE = 0;
+    public static final int MSG_CHECK_PLAY_STATE = 1;
+
+    int oldBtnState = 0;
+
+    static final int ACTION_UP = 0;
+    static final int ACTION_DOWN = 1;
+
+    private static class WeakHandler extends Handler {
+
+        private WeakReference<Context> reference;
+
+        public WeakHandler(Context context) {
+            reference = new WeakReference<>(context);//这里传入activity的上下文
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case MSG_CHECK_CAPTURE_BTN_STATE:
+                    removeMessages(MSG_CHECK_CAPTURE_BTN_STATE);
+//                Log.d("Andy", "removeMessages");
+                    ((Main2Activity) reference.get()).getCpBtnState();
+                    break;
+                case MSG_CHECK_PLAY_STATE:
+                    removeMessages(MSG_CHECK_PLAY_STATE);
+                    ((Main2Activity) reference.get()).checkPlayerState();
+                    sendEmptyMessageDelayed(MSG_CHECK_PLAY_STATE,1000);
+            }
+        }
+
+    }
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,9 +100,11 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
         mMediaPlayer = new MediaPlayer(mLibVLC);
         // live data init
         isFrozen.setValue(false);
+        isLostConnection.setValue(false);
         // view init
         mDrawerLayout = findViewById(R.id.drawer_layout);
         mTextureView = findViewById(R.id.texture_view);
+        mLostConnection = findViewById(R.id.lost_connection);
         imageView = findViewById(R.id.freeze);
         mTextState = findViewById(R.id.state);
         seekBarBrightness = findViewById(R.id.seekbar_brightness);
@@ -109,6 +147,19 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
                 } else {
                     mTextureView.setVisibility(View.VISIBLE);
                     imageView.setVisibility(View.GONE);
+                }
+            }
+        });
+
+        isLostConnection.observe(this, new Observer<Boolean>() {
+            @Override
+            public void onChanged(Boolean isLostConnection) {
+                if (isLostConnection) {
+                    mLostConnection.setVisibility(View.VISIBLE);
+                    mTextureView.setVisibility(View.INVISIBLE);
+                } else {
+                    mLostConnection.setVisibility(View.GONE);
+                    mTextureView.setVisibility(View.VISIBLE);
                 }
             }
         });
@@ -158,6 +209,17 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
 
         getDefault();
         startQueryCapBtnState();
+        mHandler.sendEmptyMessage(MSG_CHECK_PLAY_STATE);
+    }
+
+    public void checkPlayerState() {
+//        Log.d("Andy", "" + mMediaPlayer.getPlayerState());
+        if (mMediaPlayer.getPlayerState() == Media.State.Playing) {
+            isLostConnection.setValue(false);
+        } else {
+            isLostConnection.setValue(true);
+
+        }
     }
 
     void startQueryCapBtnState() {
@@ -172,6 +234,7 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
             int viewHeight = landH;
             int viewWidth = (int) (viewHeight * (1280f / 960));
             mTextureView.setLayoutParams(new ConstraintLayout.LayoutParams(viewWidth, viewHeight));
+            mLostConnection.setLayoutParams(new ConstraintLayout.LayoutParams(viewWidth, viewHeight));
         }
     }
 
@@ -187,6 +250,7 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
 
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
+        Log.d("Andy", "onSurfaceTextureAvailable");
         attachViewSurface();
         if (mMediaPlayer.hasMedia()) {
             mMediaPlayer.play();
@@ -203,11 +267,14 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
 
     @Override
     public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
+        Log.d("Andy", "onSurfaceTextureSizeChanged");
 
     }
 
     @Override
     public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
+        Log.d("Andy", "onSurfaceTextureDestroyed");
+
         mMediaPlayer.release();
         mLibVLC.release();
         return false;
@@ -215,34 +282,24 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
 
     @Override
     public void onSurfaceTextureUpdated(SurfaceTexture surface) {
+        Log.d("Andy", "onSurfaceTextureUpdated");
 
     }
 
-    WeakHandler mHandler = new WeakHandler(this);
-
-    private static class WeakHandler extends Handler {
-
-        private WeakReference<Context> reference;
-
-        public WeakHandler(Context context) {
-            reference = new WeakReference<>(context);//这里传入activity的上下文
-        }
-        @Override
-        public void handleMessage(Message msg) {
-            if (msg.what == MSG_CHECK_CAPTURE_BTN_STATE) {
-                removeMessages(MSG_CHECK_CAPTURE_BTN_STATE);
-                Log.d("Andy", "removeMessages");
-                ((Main2Activity) reference.get()).getCpBtnState();
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Log.d("Andy", "mMediaPlayer.getPlayerState() = " + mMediaPlayer.getPlayerState());
+        if (mMediaPlayer.getPlayerState() != Media.State.Playing) {
+            try {
+                Media media = new Media(mLibVLC, Uri.parse(rtspUrl0));
+                mMediaPlayer.setMedia(media);
+                mMediaPlayer.play();
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }
-
-    public static final int MSG_CHECK_CAPTURE_BTN_STATE = 0;
-
-    int oldBtnState = 0;
-
-    static final int ACTION_UP = 0;
-    static final int ACTION_DOWN = 1;
 
     public void getCpBtnState() {
         RestApiManager.getInstance().getCapBtnState(new Callback<JsonObject>() {
@@ -271,10 +328,8 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
                         }
                     }
                     oldBtnState = CapBtn;
-
-                    Log.d("Andy", "SendMessage = " + CapBtn);
-                    Log.d("Andy", "CapBtn = " + CapBtn);
-                    startQueryCapBtnState();                }
+                    startQueryCapBtnState();
+                }
             }
 
             @Override
