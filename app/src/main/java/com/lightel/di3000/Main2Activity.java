@@ -1,15 +1,22 @@
 package com.lightel.di3000;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Observer;
 
+import android.content.Context;
+import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.SurfaceTexture;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
@@ -23,6 +30,7 @@ import org.videolan.libvlc.LibVLC;
 import org.videolan.libvlc.Media;
 import org.videolan.libvlc.MediaPlayer;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 
 import retrofit2.Call;
@@ -31,6 +39,7 @@ import retrofit2.Response;
 
 public class Main2Activity extends AppCompatActivity implements TextureView.SurfaceTextureListener {
 
+    DrawerLayout mDrawerLayout;
     TextureView mTextureView;
     private MediaPlayer mMediaPlayer;
     private LibVLC mLibVLC = null;
@@ -39,6 +48,7 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
     TextView mTextState;
     SeekBar seekBarBrightness;
     SeekBar seekBarContrast;
+    Button btnOption;
 
     MutableLiveData<Boolean> isFrozen = new MutableLiveData<>();
 
@@ -55,11 +65,16 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
         // live data init
         isFrozen.setValue(false);
         // view init
+        mDrawerLayout = findViewById(R.id.drawer_layout);
         mTextureView = findViewById(R.id.texture_view);
         imageView = findViewById(R.id.freeze);
         mTextState = findViewById(R.id.state);
         seekBarBrightness = findViewById(R.id.seekbar_brightness);
         seekBarContrast = findViewById(R.id.seekbar_contrast);
+        btnOption = findViewById(R.id.option);
+        // set landscape due to player is constrained.
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+        setTextViewSize();
 
         mTextureView.setSurfaceTextureListener(this);
 
@@ -67,9 +82,7 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
         test.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (isFrozen.getValue() != null) {
-                    isFrozen.setValue(!isFrozen.getValue());
-                }
+
             }
         });
 
@@ -136,8 +149,30 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
             }
         });
 
-        getDefault();
+        btnOption.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mDrawerLayout.openDrawer(Gravity.RIGHT);
+            }
+        });
 
+        getDefault();
+        startQueryCapBtnState();
+    }
+
+    void startQueryCapBtnState() {
+        mHandler.sendEmptyMessage(MSG_CHECK_CAPTURE_BTN_STATE);
+    }
+
+    void setTextViewSize() {
+        if (getRequestedOrientation() == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {
+            int landH = Util.getWidth(this);    // 1080
+            int landW = Util.getHeight(this);   // 1920
+
+            int viewHeight = landH;
+            int viewWidth = (int) (viewHeight * (1280f / 960));
+            mTextureView.setLayoutParams(new ConstraintLayout.LayoutParams(viewWidth, viewHeight));
+        }
     }
 
     private void attachViewSurface() {
@@ -183,16 +218,63 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
 
     }
 
-    void getCpBtnState() {
+    WeakHandler mHandler = new WeakHandler(this);
+
+    private static class WeakHandler extends Handler {
+
+        private WeakReference<Context> reference;
+
+        public WeakHandler(Context context) {
+            reference = new WeakReference<>(context);//这里传入activity的上下文
+        }
+        @Override
+        public void handleMessage(Message msg) {
+            if (msg.what == MSG_CHECK_CAPTURE_BTN_STATE) {
+                removeMessages(MSG_CHECK_CAPTURE_BTN_STATE);
+                Log.d("Andy", "removeMessages");
+                ((Main2Activity) reference.get()).getCpBtnState();
+            }
+        }
+    }
+
+    public static final int MSG_CHECK_CAPTURE_BTN_STATE = 0;
+
+    int oldBtnState = 0;
+
+    static final int ACTION_UP = 0;
+    static final int ACTION_DOWN = 1;
+
+    public void getCpBtnState() {
         RestApiManager.getInstance().getCapBtnState(new Callback<JsonObject>() {
             @Override
             public void onResponse(Call<JsonObject> call, Response<JsonObject> response) {
                 if (response.isSuccessful()) {
                     JsonObject object = response.body();
                     int CapBtn = object.get("CapBtn").getAsInt();
+                    if (CapBtn == oldBtnState) {
+                        if (CapBtn == 0) {
+                            // keep not click
+//                            Log.d("Andy1", "keep not click ");
+                        } else {
+                            // keep click
+//                            Log.d("Andy1", "keep click ");
+                        }
+                    } else {
+                        if (CapBtn == 1) {
+                            // action up
+                            Log.d("Andy1", "action down");
+                            onKeyEvent(ACTION_DOWN);
+                        } else {
+                            // action down
+                            Log.d("Andy1", "action up");
+                            onKeyEvent(ACTION_UP);
+                        }
+                    }
+                    oldBtnState = CapBtn;
+
+                    Log.d("Andy", "SendMessage = " + CapBtn);
                     Log.d("Andy", "CapBtn = " + CapBtn);
-//                    Log.d("Andy", "contrast = " + contrast);
-                }
+                    startQueryCapBtnState();                }
             }
 
             @Override
@@ -200,6 +282,19 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
                 Log.d("Andy", "Throwable = " + t);
             }
         });
+    }
+
+    void onKeyEvent(int event) {
+        switch (event) {
+            case ACTION_DOWN:
+                break;
+            case ACTION_UP:
+                if (isFrozen.getValue() != null) {
+                    isFrozen.setValue(!isFrozen.getValue());
+                }
+                break;
+        }
+
     }
 
     void getDefault() {
