@@ -69,14 +69,6 @@
             app:layout_constraintBottom_toBottomOf="parent"/>
 
         <Button
-            android:id="@+id/test"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="test"
-            android:textAllCaps="false"
-            android:visibility="gone"/>
-
-        <Button
             android:id="@+id/option"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -87,6 +79,18 @@
             app:layout_constraintStart_toEndOf="@id/texture_view"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"/>
+
+        <TextView
+            android:id="@+id/text_battery"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Battery :"
+            android:textAllCaps="false"
+            android:textColor="@android:color/white"
+            android:layout_margin="20dp"
+            app:layout_constraintStart_toEndOf="@id/texture_view"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/option"/>
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <LinearLayout

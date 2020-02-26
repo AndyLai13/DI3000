@@ -1,11 +1,5 @@
 package com.lightel.di3000;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.constraintlayout.widget.ConstraintLayout;
-import androidx.drawerlayout.widget.DrawerLayout;
-import androidx.lifecycle.MutableLiveData;
-import androidx.lifecycle.Observer;
-
 import android.content.Context;
 import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
@@ -23,7 +17,15 @@ import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.core.content.ContextCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.Observer;
+
 import com.google.gson.JsonObject;
+import com.lightel.di3000.RestApiManager.Battery;
 
 import org.videolan.libvlc.IVLCVout;
 import org.videolan.libvlc.LibVLC;
@@ -52,14 +54,20 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
     SeekBar seekBarBrightness;
     SeekBar seekBarContrast;
     Button btnOption;
+    TextView mTextBattery;
+
     MutableLiveData<Boolean> isFrozen = new MutableLiveData<>();
     MutableLiveData<Boolean> isLostConnection = new MutableLiveData<>();
+    MutableLiveData<Battery> battery = new MutableLiveData<>();
+
     WeakHandler mHandler = new WeakHandler(this);
 
     public static final int MSG_CHECK_CAPTURE_BTN_STATE = 0;
     public static final int MSG_CHECK_PLAY_STATE = 1;
+    public static final int MSG_CHECK_BATTERS_STATE = 2;
 
     int oldBtnState = 0;
+    boolean forceStop = false;
 
     static final int ACTION_UP = 0;
     static final int ACTION_DOWN = 1;
@@ -85,14 +93,17 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
         switch (msg.what) {
             case MSG_CHECK_CAPTURE_BTN_STATE:
                 mHandler.removeMessages(MSG_CHECK_CAPTURE_BTN_STATE);
-                Log.d("Andy", "MSG_CHECK_CAPTURE_BTN_STATE");
                 getCpBtnState();
                 break;
             case MSG_CHECK_PLAY_STATE:
-                Log.d("Andy", "MSG_CHECK_PLAY_STATE");
                 mHandler.removeMessages(MSG_CHECK_PLAY_STATE);
                 checkPlayerState();
                 mHandler.sendEmptyMessageDelayed(MSG_CHECK_PLAY_STATE, 1000);
+                break;
+            case MSG_CHECK_BATTERS_STATE:
+                mHandler.removeMessages(MSG_CHECK_BATTERS_STATE);
+                checkBatteryState();
+                break;
         }
     }
 
@@ -104,6 +115,7 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
         // vlc init
         final ArrayList<String> args = new ArrayList<>();
         args.add("-vvv");
+        args.add("--network-caching=100");
         mLibVLC = new LibVLC(this, args);
         mMediaPlayer = new MediaPlayer(mLibVLC);
         // live data init
@@ -120,6 +132,7 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
         seekBarBrightness = findViewById(R.id.seekbar_brightness);
         seekBarContrast = findViewById(R.id.seekbar_contrast);
         btnOption = findViewById(R.id.option);
+        mTextBattery = findViewById(R.id.text_battery);
         // set landscape due to player is constrained.
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
         setTextViewSize();
@@ -142,7 +155,7 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
                     mTextState.setTextColor(Color.RED);
                 } else {
                     mTextState.setText(R.string.state_real_time_stream);
-                    mTextState.setTextColor(getColor(R.color.blue));
+                    mTextState.setTextColor(ContextCompat.getColor(Main2Activity.this, R.color.blue));
                 }
                 // capture image
                 if (isFrozen) {
@@ -173,6 +186,19 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
                     getDefault();
                     startQueryCapBtnState();
                 }
+            }
+        });
+
+        battery.observe(this, new Observer<Battery>() {
+            @Override
+            public void onChanged(Battery battery) {
+                String content = "Battery : ";
+                if (battery.Status.equals("Charge")) {
+                    content = content.concat("Charge");
+                } else {
+                    content = content.concat(String.valueOf(battery.Percent));
+                }
+                mTextBattery.setText(content);
             }
         });
 
@@ -218,8 +244,6 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
                 mDrawerLayout.openDrawer(Gravity.RIGHT);
             }
         });
-
-        mHandler.sendEmptyMessage(MSG_CHECK_PLAY_STATE);
     }
 
     public void checkPlayerState() {
@@ -235,7 +259,23 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
         }
     }
 
-    boolean forceStop = false;
+    public void checkBatteryState() {
+        RestApiManager.getInstance().getBatteryState(new Callback<Battery>() {
+            @Override
+            public void onResponse(Call<Battery> call, Response<Battery> response) {
+                if (response.isSuccessful()) {
+                    Battery object = response.body();
+                    battery.setValue(object);
+                    mHandler.sendEmptyMessageDelayed(MSG_CHECK_BATTERS_STATE, 1000);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Battery> call, Throwable t) {
+
+            }
+        });
+    }
 
     void startQueryCapBtnState() {
         mHandler.sendEmptyMessage(MSG_CHECK_CAPTURE_BTN_STATE);
@@ -308,6 +348,8 @@ public class Main2Activity extends AppCompatActivity implements TextureView.Surf
     protected void onResume() {
         super.onResume();
         retry();
+        mHandler.sendEmptyMessage(MSG_CHECK_PLAY_STATE);
+        mHandler.sendEmptyMessage(MSG_CHECK_BATTERS_STATE);
     }
 
     public synchronized void getCpBtnState() {

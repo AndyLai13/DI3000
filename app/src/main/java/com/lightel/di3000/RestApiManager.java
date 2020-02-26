@@ -81,6 +81,10 @@ public class RestApiManager {
         Call<JsonObject> call = mAPIService.getCapBtnState();
         call.enqueue(callback);
     }
+    void getBatteryState(Callback<Battery> callback) {
+        Call<Battery> call = mAPIService.getBatteryState();
+        call.enqueue(callback);
+    }
 
     public interface APIService {
         @GET("do/getmodel")
@@ -116,5 +120,18 @@ public class RestApiManager {
         @GET("do/getcap")
         Call<JsonObject> getCapBtnState();
 
+        @GET("do/getbattery")
+        Call<Battery> getBatteryState();
+    }
+
+
+    public static class Battery {
+        String Status;
+        int Percent;
+
+        public Battery(String Status, int Percent) {
+            this.Status = Status;
+            this.Percent = Percent;
+        }
     }
 }
